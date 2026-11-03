@@ -1,6 +1,6 @@
 # Annotator Agent
 
-Turn a qualitative codebook into an LLM annotation prompt, annotate tutoring transcripts with it, measure the result against human gold labels with Cohen's kappa, and improve the prompt with AI suggestions that you review. Everything runs on your own computer from the terminal, with your own API key. There's no app, login, database or server.
+Turn a qualitative codebook into an LLM annotation prompt, annotate tutoring transcripts with it, measure the result against human gold labels with Cohen's kappa, and improve the prompt with AI suggestions that you review. Everything runs on your own computer from the terminal, with your own API key.
 
 ```
 codebook  →  prompt v1  →  annotate  →  kappa vs human labels  →  suggestions  →  you edit  →  prompt v2  →  …
