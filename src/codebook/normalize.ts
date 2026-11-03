@@ -162,10 +162,10 @@ export default function normalizeExtractedCodebook(
     if (codes.length === 0) continue;
     usedCategoryNames.add(name.toLowerCase());
 
-    if (
-      needsNotApplicableCode(category) &&
-      !usedCodes.has(NOT_APPLICABLE_CODE.toLowerCase())
-    ) {
+    const hasNotApplicable = [...usedCodes].some((code) =>
+      /^(n\s*\/?\s*a|not applicable|none)$/i.test(code),
+    );
+    if (needsNotApplicableCode(category) && !hasNotApplicable) {
       codes.push({
         code: NOT_APPLICABLE_CODE,
         description: "",

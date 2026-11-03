@@ -147,3 +147,21 @@ describe("NA code", () => {
     expect(result.categories[1].codes.map((c) => c.code)).toEqual(["Hint"]);
   });
 });
+
+describe("existing NA codes", () => {
+  it("does not add NA when the codebook already has N/A", () => {
+    const result = normalizeExtractedCodebook({
+      categories: [
+        {
+          name: "Tutor output type",
+          appliesToSpeaker: "Tutor",
+          codes: [{ code: "Ask follow-up questions" }, { code: "N/A" }],
+        },
+      ],
+    });
+    expect(result.categories[0].codes.map((c) => c.code)).toEqual([
+      "Ask follow-up questions",
+      "N/A",
+    ]);
+  });
+});
