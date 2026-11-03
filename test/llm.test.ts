@@ -26,6 +26,13 @@ const server = http.createServer((req, res) => {
     }
     const text = replies.shift() ?? '{"ok":true}';
     res.writeHead(200, { "content-type": "text/event-stream" });
+    if (text === "STREAM_ERROR") {
+      // LiteLLM reports provider outages as an error event in the stream.
+      res.end(
+        `data: ${JSON.stringify({ error: { message: 'litellm.ServiceUnavailableError: BedrockException - serviceUnavailableException {"message":"Bedrock is unable to process your request."}' } })}\n\n`,
+      );
+      return;
+    }
     res.write(
       `data: ${JSON.stringify({ id: "x", object: "chat.completion.chunk", choices: [{ index: 0, delta: { content: text } }] })}\n\n`,
     );
@@ -107,6 +114,23 @@ describe("chatJson", () => {
     });
 
     expect(result).toEqual({ fixed: true });
+    expect(requests).toHaveLength(2);
+  }, 20_000);
+
+  it("retries when the provider is unavailable mid-stream", async () => {
+    const { chatJson } = await import("../src/llm");
+    rejectSchema = false;
+    replies = ["STREAM_ERROR", '{"recovered": true}'];
+
+    const result = await chatJson<{ recovered: boolean }>({
+      model: "m",
+      system: "s",
+      user: "u",
+      schema: { type: "object" },
+      retries: 1,
+    });
+
+    expect(result).toEqual({ recovered: true });
     expect(requests).toHaveLength(2);
   }, 20_000);
 });

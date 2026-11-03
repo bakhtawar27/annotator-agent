@@ -79,9 +79,16 @@ function isRetryable(error: unknown): boolean {
   if (error instanceof SyntaxError) return true; // model returned broken JSON
   if (error instanceof OpenAI.APIConnectionError) return true;
   if (error instanceof OpenAI.APIError) {
-    return error.status === 429 || (error.status ?? 0) >= 500;
+    if (error.status === 429 || (error.status ?? 0) >= 500) return true;
   }
-  return false;
+  // Errors sent in the middle of a stream (e.g. "Bedrock is unable to
+  // process your request") arrive without a status code.
+  return (
+    error instanceof Error &&
+    /unavailable|overloaded|throttl|rate limit|timeout|timed out|try again|internal server error/i.test(
+      error.message,
+    )
+  );
 }
 
 function isSchemaRejection(error: unknown): boolean {
@@ -114,7 +121,7 @@ export async function chatJson<T>({
   system,
   user,
   schema,
-  retries = 3,
+  retries = 4,
 }: {
   model: string;
   system: string;
@@ -166,7 +173,10 @@ export async function chatJson<T>({
         continue;
       }
       if (attempt >= retries || !isRetryable(error)) throw error;
-      await sleep(2000 * 2 ** attempt);
+      console.error(
+        `The model service had a problem; retrying (${attempt + 1}/${retries})...`,
+      );
+      await sleep(5000 * 2 ** attempt);
     }
   }
 }
