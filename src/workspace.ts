@@ -59,12 +59,17 @@ export function findInputFiles(overrides: {
   const base = (filePath: string) => path.basename(filePath).toLowerCase();
   const problems: string[] = [];
 
-  const csvs = files.filter((file) => base(file).endsWith(".csv"));
+  const isCodebookName = (file: string) => base(file).includes("codebook");
+  const csvs = files.filter(
+    (file) => base(file).endsWith(".csv") && !isCodebookName(file),
+  );
+  // A .csv or .json codebook is recognised by "codebook" in its name.
   const documents = files.filter(
     (file) =>
       isSupportedCodebookFile(file) &&
-      !base(file).endsWith(".csv") &&
-      !base(file).endsWith(".json"),
+      base(file) !== "column-map.json" &&
+      (isCodebookName(file) ||
+        (!base(file).endsWith(".csv") && !base(file).endsWith(".json"))),
   );
 
   const pick = (
@@ -88,7 +93,10 @@ export function findInputFiles(overrides: {
     codebook: pick(
       "codebook",
       overrides.codebook,
-      files.find((file) => base(file).startsWith("codebook.")),
+      files.find((file) => base(file).startsWith("codebook.")) ??
+        (documents.filter(isCodebookName).length === 1
+          ? documents.find(isCodebookName)
+          : undefined),
       documents,
     ),
     dataset: pick(
