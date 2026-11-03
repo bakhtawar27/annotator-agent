@@ -1,0 +1,29 @@
+{
+  "name": "annotator-agent",
+  "version": "0.1.0",
+  "description": "Turn a qualitative codebook into an LLM annotation prompt, annotate tutoring transcripts, measure Cohen's kappa against human labels, and improve the prompt.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "agent": "tsx src/cli.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "csv-parse": "6.1.0",
+    "dotenv": "16.6.1",
+    "mammoth": "1.11.0",
+    "openai": "5.23.2",
+    "tsx": "4.21.0",
+    "unpdf": "1.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.25",
+    "typescript": "5.9.3",
+    "vitest": "4.0.15"
+  }
+}
