@@ -20,7 +20,7 @@ codebook  →  prompt v1  →  annotate  →  kappa vs human labels  →  sugges
      AGENT_MODEL=gpt-4o
      ```
 
-   - **Cornell AI Gateway, or any OpenAI-compatible service:**
+   - ** Any OpenAI-compatible service:**
 
      ```
      OPENAI_API_KEY=your-gateway-key
@@ -65,11 +65,6 @@ On Windows, type `agent` instead of `./agent`.
 - **You review every step.** Fix codes in `workspace/output/codebook.json` before writing the prompt. Edit any prompt file before running it. `annotate` asks before it sends anything to the model.
 - **It starts small.** `annotate` runs only the sessions in your gold files by default, or 5 sessions if you have none. Use `--sessions all` for the whole dataset, or `--sessions 20`.
 - **Gold sessions missing from the dataset still work.** If a gold file's session IDs aren't in the dataset, that conversation is taken from the gold file. The model only sees speaker and text, never the human labels.
-- **Several gold files** are pooled into one kappa per category.
-- **Two kappas.**
-  - "kappa" counts every matched row, including NA.
-  - "kappa (non-NA)" only counts rows where the human label isn't NA. It's lower but more honest for categories that apply to one speaker.
-- **Small spelling differences are forgiven.** A human label like "Ask follow-up question" or "Specifc question" is read as the codebook code "ask follow-up questions" / "Specific question" when the match is clear (never when the words mean the opposite, like correct/incorrect). Every such mapping is listed in `evaluation.md`; `--exact-labels` turns this off.
 - **Multi-label codes** ("A, B" from coders, "A | B" from the model) are compared as sets: the model must give exactly the same codes.
 - **Previous AI kappa** appears when a gold file has `(AI)` columns, so you can see whether your prompt beats the earlier one.
 - **Label problems are flagged.** The evaluation lists human labels that aren't codebook codes (typos like "Specifc question"). The suggestions list possible gold-label or codebook issues separately, so you don't tune the prompt to label noise.
