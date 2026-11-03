@@ -4,6 +4,7 @@ import {
   standardizeTranscriptRows,
 } from "../annotate/transcripts";
 import calculateCohensKappa from "./cohensKappa";
+import { type LabelMapping, LabelMatcher } from "./labelMatching";
 import getKappaInterpretation from "./kappaInterpretation";
 import calculatePRF1 from "./prf1";
 
@@ -343,6 +344,7 @@ export interface FieldEvaluation {
   baselineRows: number;
   topConfusions: { gold: string; ai: string; count: number }[];
   goldLabelsNotInCodebook: string[];
+  labelMappings: LabelMapping[];
   disagreements: Disagreement[];
 }
 
@@ -358,17 +360,32 @@ export function evaluateField({
   fieldKey,
   goldColumns,
   codes = [],
+  exactLabels = false,
 }: {
   matched: MatchedRow[];
   fieldKey: string;
   goldColumns: string[];
   codes?: string[];
+  /** Turn off matching of near-identical human labels to codebook codes. */
+  exactLabels?: boolean;
 }): FieldEvaluation {
   const rowsWithGold = matched.filter((row) => fieldKey in row.gold);
   const aiColumn = `ai_${fieldKey}`;
-  const goldLabels = rowsWithGold.map((row) =>
-    normalizeLabel(row.gold[fieldKey]),
+  const matcher = new LabelMatcher(
+    exactLabels
+      ? []
+      : [...new Set(codes.map(normalizeLabel))].filter(
+          (code) => code !== NA_LABEL,
+        ),
   );
+  const toCodes = (value: unknown) => {
+    const label = normalizeLabel(value);
+    if (label === NA_LABEL) return label;
+    return [...new Set(label.split(" + ").map((part) => matcher.map(part)))]
+      .sort()
+      .join(" + ");
+  };
+  const goldLabels = rowsWithGold.map((row) => toCodes(row.gold[fieldKey]));
   const aiLabels = rowsWithGold.map((row) => normalizeLabel(row.ai[aiColumn]));
 
   const applicableIndexes = goldLabels
@@ -383,10 +400,8 @@ export function evaluateField({
   const baselineKappa = baselineRows.length
     ? round(
         calculateCohensKappa(
-          baselineRows.map((row) =>
-            normalizeLabel(row.gold[baselineKey(fieldKey)]),
-          ),
-          baselineRows.map((row) => normalizeLabel(row.gold[fieldKey])),
+          baselineRows.map((row) => toCodes(row.gold[baselineKey(fieldKey)])),
+          baselineRows.map((row) => toCodes(row.gold[fieldKey])),
         ),
       )
     : null;
@@ -444,6 +459,7 @@ export function evaluateField({
         return { gold, ai, count };
       }),
     goldLabelsNotInCodebook,
+    labelMappings: matcher.mappings(),
     disagreements,
   };
 }
@@ -465,12 +481,14 @@ export function evaluateAgainstGold({
   fieldKeys,
   codesByField = {},
   overrides = {},
+  exactLabels = false,
 }: {
   aiRows: CsvRow[];
   goldFiles: GoldFile[];
   fieldKeys: string[];
   codesByField?: Record<string, string[]>;
   overrides?: Record<string, string>;
+  exactLabels?: boolean;
 }): EvaluationReport {
   const { rows: goldRows, files } = standardizeGoldFiles(
     goldFiles,
@@ -507,6 +525,7 @@ export function evaluateAgainstGold({
           fieldKey,
           goldColumns: columnsByField(fieldKey),
           codes: codesByField[fieldKey],
+          exactLabels,
         }),
       )
       .filter((field) => field.rows > 0),
@@ -564,7 +583,8 @@ export function renderEvaluationMarkdown(
   for (const field of report.fields) {
     if (
       field.topConfusions.length === 0 &&
-      field.goldLabelsNotInCodebook.length === 0
+      field.goldLabelsNotInCodebook.length === 0 &&
+      field.labelMappings.length === 0
     )
       continue;
     lines.push("", `## ${field.fieldKey}`, "");
@@ -575,8 +595,18 @@ export function renderEvaluationMarkdown(
     }
     if (field.goldLabelsNotInCodebook.length) {
       lines.push(
-        `- Gold labels that are not codes in the codebook: ${field.goldLabelsNotInCodebook.join(", ")}`,
+        `- Gold labels that are not codes in the codebook (counted as disagreements): ${field.goldLabelsNotInCodebook.join(", ")}`,
       );
+    }
+    if (field.labelMappings.length) {
+      lines.push(
+        "- Gold labels read as the closest codebook code (check these; use --exact-labels to turn this off):",
+      );
+      for (const mapping of field.labelMappings) {
+        lines.push(
+          `    - "${mapping.from}" → "${mapping.to}": ${mapping.count} times`,
+        );
+      }
     }
   }
 

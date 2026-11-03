@@ -36,7 +36,7 @@ Put these in `workspace/input/`:
 
 | File | What it is |
 | --- | --- |
-| `codebook.pdf` (or `.docx`, `.txt`, `.md`) | Your codebook |
+| `codebook.pdf` (or `.docx`, `.txt`, `.md`, or a `.csv` with "codebook" in its name) | Your codebook. Write code names exactly as your coders use them |
 | `dataset.csv` | One row per utterance: a session column (`session_id`, or student + question), a speaker column (`role`, `speaker` or `message_type`; S/T and prompt/response become Student/Tutor), a text column (`content` or `text`), and ideally `sequence_id` or `#` |
 | Gold-label CSVs (optional) | Human labels: one or more files with **gold** or **GT** in the name. Same layout rules as the dataset, plus one column per codebook category. Columns marked `(AI)` are earlier model labels; they are shown as a baseline, never used as gold |
 | `column-map.json` (optional) | Only if a gold column name doesn't match a category, e.g. `{"answer leak (Human)": "TUTOR_ANSWER_LEAK"}` |
@@ -69,6 +69,7 @@ On Windows, type `agent` instead of `./agent`.
 - **Two kappas.**
   - "kappa" counts every matched row, including NA.
   - "kappa (non-NA)" only counts rows where the human label isn't NA. It's lower but more honest for categories that apply to one speaker.
+- **Small spelling differences are forgiven.** A human label like "Ask follow-up question" or "Specifc question" is read as the codebook code "ask follow-up questions" / "Specific question" when the match is clear (never when the words mean the opposite, like correct/incorrect). Every such mapping is listed in `evaluation.md`; `--exact-labels` turns this off.
 - **Multi-label codes** ("A, B" from coders, "A | B" from the model) are compared as sets: the model must give exactly the same codes.
 - **Previous AI kappa** appears when a gold file has `(AI)` columns, so you can see whether your prompt beats the earlier one.
 - **Label problems are flagged.** The evaluation lists human labels that aren't codebook codes (typos like "Specifc question"). The suggestions list possible gold-label or codebook issues separately, so you don't tune the prompt to label noise.

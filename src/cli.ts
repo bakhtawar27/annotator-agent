@@ -82,6 +82,7 @@ type Options = {
   concurrency?: string;
   yes?: boolean;
   force?: boolean;
+  "exact-labels"?: boolean;
 };
 
 class UserError extends Error {}
@@ -545,6 +546,7 @@ async function evaluateCommand(options: Options) {
     fieldKeys,
     codesByField,
     overrides,
+    exactLabels: !!options["exact-labels"],
   });
   if (report.matchedRows === 0) {
     throw new UserError(
@@ -591,6 +593,15 @@ async function evaluateCommand(options: Options) {
       ...(f.baselineKappa !== null ? { "previous AI kappa": f.baselineKappa } : {}),
     })),
   );
+  const mappedLabels = report.fields.reduce(
+    (n, f) => n + f.labelMappings.reduce((m, x) => m + x.count, 0),
+    0,
+  );
+  if (mappedLabels) {
+    console.log(
+      `${mappedLabels} human labels were spelled differently from the codebook and were read as the closest code (listed in evaluation.md). Use --exact-labels to turn this off.`,
+    );
+  }
   if (report.unmatchedFields.length) {
     console.log(
       `Not evaluated (no human-label column found): ${report.unmatchedFields.join(", ")}. Map them in ${relative(COLUMN_MAP_JSON)}, e.g. {"answer leak (Human)": "TUTOR_ANSWER_LEAK"}.`,
@@ -676,6 +687,7 @@ const HELP = `Annotator Agent
         --sessions gold|all|<n>        default: the gold sessions, else 5
         --model <name>  --concurrency 3  --yes
   ./agent evaluate [--run v1]          Cohen's kappa against the gold-label files
+        --exact-labels                 don't read near-identical human labels as codebook codes
   ./agent suggest [--run v1]           suggestions + a draft of the next prompt
   ./agent accept v2                    make the edited draft prompt v2
 
@@ -696,6 +708,7 @@ async function main() {
       concurrency: { type: "string" },
       yes: { type: "boolean", short: "y" },
       force: { type: "boolean" },
+      "exact-labels": { type: "boolean" },
       help: { type: "boolean", short: "h" },
     },
   });
