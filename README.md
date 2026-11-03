@@ -68,6 +68,7 @@ On Windows, type `agent` instead of `./agent`.
 - **Multi-label codes** ("A, B" from coders, "A | B" from the model) are compared as sets: the model must give exactly the same codes.
 - **Previous AI kappa** appears when a gold file has `(AI)` columns, so you can see whether your prompt beats the earlier one.
 - **Label problems are flagged.** The evaluation lists human labels that aren't codebook codes (typos like "Specifc question"). The suggestions list possible gold-label or codebook issues separately, so you don't tune the prompt to label noise.
+- **Every utterance gets a label.** `annotate` asks the model for 20 utterances at a time (with the whole conversation as context) and asks again for any it skipped. It reports how many utterances were annotated.
 - **Cost.** Each command prints how many model calls and tokens it used; `run.json` records it per run. Annotation is most of the cost, so you can set a cheaper `ANNOTATION_MODEL`.
 - **Privacy.** Transcripts are sent to the API you configure. Use de-identified data and a provider your IRB approves.
 

@@ -5,8 +5,8 @@ You will need to fill out the following JSON:
 
 - Each annotation must include an "\_id" that exactly matches the "\_id" of the utterance it refers to from the conversation JSON.
 - Each annotation must include your reasoning as to why you have annotated in this way and put this in the "reasoning" field.
-- Make sure you only highlight the moments described by the user in their "prompt".
-- You are not limited to one annotation, but only annotate utterances that match the user's prompt. If you need to annotate multiple per utterance, each annotation should be a new object in the annotations array. It is fine to return an empty annotations array if no utterances match.
+- Annotate every utterance you are asked about: at least one annotation per requested "\_id", with a code for every category. When a category does not apply to an utterance (for example a student category on a tutor utterance), use its NA code.
+- If an utterance needs more than one code in a category, add another annotation object with the same "\_id".
 - Only annotate what is evidenced in the conversation. Do not infer or fabricate information that is not present.
 - The person directing the conversation in this conversation has the role: '{{leadRole}}'
 - Look over the whole session and create annotations based upon each utterance.

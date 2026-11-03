@@ -12,6 +12,7 @@
  */
 import "dotenv/config";
 import { parse } from "csv-parse/sync";
+import { annotateSession } from "./annotate/annotateSession";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
@@ -400,6 +401,8 @@ async function selectRowsToAnnotate(
   };
 }
 
+const utteranceCountOf = (session: LocalSession) => session.transcript.length;
+
 async function annotateCommand(options: Options) {
   const codebook = await loadCodebook();
   const version = resolveVersion(
@@ -451,6 +454,8 @@ async function annotateCommand(options: Options) {
 
   const results: CsvRow[][] = new Array(sessions.length);
   const failed: string[] = [];
+  const incomplete: string[] = [];
+  let annotatedUtterances = 0;
   let done = 0;
 
   await runWithConcurrency(
@@ -461,15 +466,26 @@ async function annotateCommand(options: Options) {
         const system = template
           .replaceAll("{{annotationSchema}}", JSON.stringify(promptSchema))
           .replaceAll("{{leadRole}}", session.leadRole);
-        const response = await chatJson<{ annotations?: LocalAnnotation[] }>({
-          model,
-          system,
-          user: `${promptText}\n\nConversation: ${JSON.stringify({ transcript: session.transcript, leadRole: session.leadRole })}`,
-          schema: responseSchema,
+        const result = await annotateSession({
+          session,
+          promptText,
+          ask: (user) =>
+            chatJson<{ annotations?: LocalAnnotation[] }>({
+              model,
+              system,
+              user,
+              schema: responseSchema,
+            }),
         });
+        annotatedUtterances += utteranceCountOf(session) - result.missingIds.length;
+        if (result.missingIds.length) {
+          incomplete.push(
+            `${session.sessionId} (${result.missingIds.length} of ${utteranceCountOf(session)} utterances)`,
+          );
+        }
         results[index] = mergeAnnotationsIntoRows(
           session,
-          response.annotations ?? [],
+          result.annotations,
           fieldKeys,
         );
       } catch (error) {
@@ -491,11 +507,19 @@ async function annotateCommand(options: Options) {
     source,
     sessions: sessions.length,
     utterances: utteranceCount,
+    annotatedUtterances,
     failedSessions: failed,
+    incompleteSessions: incomplete,
     usage,
     createdAt: new Date().toISOString(),
   });
-  console.log(`\nAnnotated: ${relative(outPath)}`);
+  console.log(
+    `\nAnnotated ${annotatedUtterances} of ${utteranceCount} utterances: ${relative(outPath)}`,
+  );
+  if (incomplete.length)
+    console.log(
+      `The model skipped some utterances even after being asked again; they have empty AI columns: ${incomplete.join(", ")}. A stronger ANNOTATION_MODEL usually fixes this.`,
+    );
   if (failed.length)
     console.log(
       `${failed.length} sessions failed and have empty AI columns: ${failed.join(", ")}. Run annotate again to retry.`,
