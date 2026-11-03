@@ -1,0 +1,113 @@
+import type { AnnotationSchemaItem, CodebookCategory } from "../types";
+import codifyName from "./codifyName";
+
+const SYSTEM_FIELDS: AnnotationSchemaItem[] = [
+  { isSystem: true, fieldKey: "_id", fieldType: "string", value: "" },
+  {
+    isSystem: true,
+    fieldKey: "identifiedBy",
+    fieldType: "string",
+    value: "AI",
+  },
+  { isSystem: true, fieldKey: "reasoning", fieldType: "string", value: "" },
+];
+
+export function buildAnnotationSchemaFromCategories(
+  categories: CodebookCategory[],
+  options?: { flattenedFieldKey?: string },
+) {
+  const fields = [...SYSTEM_FIELDS];
+
+  if (options?.flattenedFieldKey) {
+    const allCodes: string[] = [];
+    for (const category of categories) {
+      for (const code of category.codes) {
+        allCodes.push(code.code);
+      }
+    }
+
+    if (allCodes.length > 0) {
+      fields.push({
+        isSystem: false,
+        fieldKey: options.flattenedFieldKey,
+        fieldType: "string",
+        value: "",
+        codes: allCodes,
+      });
+    }
+  } else {
+    for (const category of categories) {
+      if (category.codes.length === 0) continue;
+
+      fields.push({
+        isSystem: false,
+        fieldKey: codifyName(category.name),
+        fieldType: "string",
+        value: "",
+        codes: category.codes.map((c) => c.code),
+      });
+    }
+  }
+
+  return fields;
+}
+
+export function buildCodebookSummary({
+  codebookName,
+  codebookDescription,
+  categories,
+}: {
+  codebookName: string;
+  codebookDescription: string;
+  categories: CodebookCategory[];
+}): string {
+  const lines: string[] = [];
+
+  lines.push(`Codebook: ${codebookName}`);
+  if (codebookDescription) {
+    lines.push(`Intent: ${codebookDescription}`);
+  }
+  lines.push("");
+
+  for (const category of categories) {
+    lines.push(`## ${category.name}`);
+    if (category.description) {
+      lines.push(category.description);
+    }
+    lines.push("");
+
+    for (const code of category.codes) {
+      lines.push(`### ${code.code}`);
+      if (code.definition) {
+        lines.push(code.definition);
+      }
+
+      const examplesByType = groupExamplesByType(code.examples);
+      for (const [type, examples] of Object.entries(examplesByType)) {
+        for (const example of examples) {
+          lines.push(`- ${type}: "${example.example}"`);
+        }
+      }
+
+      lines.push("");
+    }
+  }
+
+  return lines.join("\n").trim();
+}
+
+function groupExamplesByType(
+  examples: { example: string; exampleType: string }[],
+) {
+  const grouped: Record<string, { example: string; exampleType: string }[]> =
+    {};
+
+  for (const ex of examples) {
+    if (!grouped[ex.exampleType]) {
+      grouped[ex.exampleType] = [];
+    }
+    grouped[ex.exampleType].push(ex);
+  }
+
+  return grouped;
+}
