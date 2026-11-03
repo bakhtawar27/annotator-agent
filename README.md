@@ -20,7 +20,7 @@ codebook  →  prompt v1  →  annotate  →  kappa vs human labels  →  sugges
      AGENT_MODEL=gpt-4o
      ```
 
-   - ** Any OpenAI-compatible service:**
+   - **Any OpenAI-compatible service:**
 
      ```
      OPENAI_API_KEY=your-gateway-key
