@@ -32,16 +32,31 @@ codebook  →  prompt v1  →  annotate  →  kappa vs human labels  →  sugges
 
 ## Your files
 
-Put these in `workspace/input/`:
+Put your three files in `workspace/input/`. You can drag them into the folder in Finder or File Explorer, or copy them in the terminal:
+
+```bash
+cp ~/Downloads/codebook.csv     workspace/input/
+cp ~/Downloads/dataset.csv      workspace/input/
+cp ~/Downloads/ground_truth.csv workspace/input/
+```
+
+```
+workspace/input/
+├── codebook.csv        your codebook
+├── dataset.csv         the transcripts to annotate
+└── ground_truth.csv    human labels for some or all of those transcripts (optional)
+```
+
+The tool finds each file by its name and type:
 
 | File | What it is |
 | --- | --- |
-| `codebook.pdf` (or `.docx`, `.txt`, `.md`, or a `.csv` with "codebook" in its name) | Your codebook. Write code names exactly as your coders use them |
-| `dataset.csv` | One row per utterance: a session column (`session_id`, or student + question), a speaker column (`role`, `speaker` or `message_type`; S/T and prompt/response become Student/Tutor), a text column (`content` or `text`), and ideally `sequence_id` or `#` |
-| Gold-label CSVs (optional) | Human labels: one or more files with **gold** or **GT** in the name. Same layout rules as the dataset, plus one column per codebook category. Columns marked `(AI)` are earlier model labels; they are shown as a baseline, never used as gold |
+| Codebook: `.pdf`, `.docx`, `.txt` or `.md`, or a `.csv` with "codebook" in its name | Your categories and codes. Write code names exactly as your coders use them |
+| Dataset: any other `.csv` | One row per utterance: a session column (`session_id`, or student + question), a speaker column (`role`, `speaker` or `message_type`; S/T and prompt/response become Student/Tutor), a text column (`content` or `text`), and ideally `sequence_id` or `#` |
+| Human labels (optional): one or more `.csv` files with **gold**, **GT**, **ground truth** or **human** in the name | The same layout as the dataset, plus one column per codebook category. Columns marked `(AI)` are earlier model labels; they are shown as a baseline, never used as gold. If you have several files for the same sessions, keep only one, or the rows count twice |
 | `column-map.json` (optional) | Only if a gold column name doesn't match a category, e.g. `{"answer leak (Human)": "TUTOR_ANSWER_LEAK"}` |
 
-Everything in `workspace/input/` and `workspace/output/` stays on your computer; Git ignores both folders.
+Run `./agent status` to check it found the right file for each role. Everything in `workspace/input/` and `workspace/output/` stays on your computer; Git ignores both folders.
 
 ## The loop
 
@@ -59,6 +74,38 @@ On Windows, type `agent` instead of `./agent`.
 ./agent accept v2       # 7. it becomes prompt v2
 ./agent annotate        # repeat 3–7 with v2, v3, …
 ```
+
+What each step does:
+
+1. **codebook** reads your codebook document with the model and turns it into a list of categories and codes. Open `codebook.md` to check it. If a code is missing or misspelled, fix it in `codebook.json`, which is the file later steps use.
+2. **prompt** writes an annotation prompt from the codebook: what each code means and when to use it. This is `prompts/v1.md`. Edit it freely; the model gets exactly what's in the file.
+3. **annotate** sends each conversation and the prompt to the model, which labels every utterance in every category. The result is your dataset with an `ai_` column per category, plus the model's reasoning.
+4. **evaluate** lines up the AI labels with your human labels row by row and computes Cohen's kappa per category, with the most common disagreements.
+5. **suggest** gives the model the prompt, the kappa scores and the disagreements, and asks how to change the prompt. It writes the suggestions and a draft of the next prompt.
+6. **You decide** what goes into the next prompt: edit the draft, keep or drop each change.
+7. **accept** makes your edited draft the next version. Run annotate and evaluate again to see whether kappa went up.
+
+## What you get
+
+```
+workspace/output/
+├── codebook.md            the codebook as the tool understood it   (read this)
+├── codebook.json          the same, used by later steps             (edit this to fix codes)
+├── schema.json            the categories and allowed codes for the model
+├── prompts/
+│   ├── v1.md              prompt v1                                  (edit before annotating)
+│   └── v2.draft.md        suggested prompt v2                        (edit, then ./agent accept v2)
+└── runs/
+    └── v1/                one folder per prompt version
+        ├── annotated.csv      your dataset + ai_<category> and ai_reasoning columns
+        ├── run.json           model, sessions, utterances annotated, tokens used
+        ├── evaluation.md      kappa per category, top disagreements   (show this)
+        ├── evaluation.json    the same numbers for scripts
+        ├── disagreements.csv  every row where the AI and human labels differ, with the AI's reasoning
+        └── suggestions.md     what to change in the prompt, and possible label or codebook issues
+```
+
+Each prompt version gets its own `runs/` folder, so you can open `runs/v1/evaluation.md` and `runs/v2/evaluation.md` side by side to see whether the new prompt did better. `./agent status` lists the kappa of every run.
 
 ## Good to know
 
